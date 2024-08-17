@@ -1,91 +1,117 @@
 package tests;
 
+import models.ColourResponse;
+import models.CreateUserResponse;
+import models.UnsuccessfulLoginResponse;
+import models.UpdateDataResponse;
+import models.UserResponse;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static endpoints.Endpoints.LOGIN;
+import static endpoints.Endpoints.UNKNOWN;
+import static endpoints.Endpoints.USERS;
+import static io.qameta.allure.Allure.step;
 import static io.restassured.RestAssured.given;
-import static io.restassured.http.ContentType.JSON;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static specs.RequestSpecs.requestSpecification;
+import static specs.ResponseSpecs.responseSpec;
+import static testdata.TestData.*;
 
 public class ReqresTest extends BaseTest {
 
     @Test
+    @DisplayName("Проверка получения списка пользователей")
     void getUsersListTest() {
-        given()
-                .log()
-                .all()
-                .get("/users?page=2")
-                .then().log().body()
-                .statusCode(200)
-                .body("data[0].email", is("michael.lawson@reqres.in"));
+
+        UserResponse response =
+                step("Отправка запроса на получение списка пользователей", () ->
+                        given(requestSpecification)
+                                .get(USERS_PAGE_PATH)
+                                .then()
+                                .spec(responseSpec(200))
+                                .extract().as(UserResponse.class));
+
+        step("Проверка email", () ->
+                assertThat(response.getData().get(0).getEmail(), is(EMAIL)));
     }
 
     @Test
+    @DisplayName("Проверка создания пользователя")
     void postCreateUserTest() {
 
-        String authData = "{\"name\": \"Mike\", \"job\": \"manager\"}";
+        CreateUserResponse response =
+                step("Отправка запроса на создание пользователя", () ->
+                        given(requestSpecification)
+                                .body(createUserRequest())
+                                .when()
+                                .post(USERS)
+                                .then()
+                                .spec(responseSpec(201))
+                                .extract().as(CreateUserResponse.class));
 
-        given()
-                .body(authData)
-                .contentType(JSON)
-                .log().uri()
-                .when()
-                .post("/users")
-                .then()
-                .log().status()
-                .log().body()
-                .statusCode(201)
-                .body("name", is("Mike"))
-                .body("job", is("manager"))
-                .body("id", is(notNullValue()));
+        step("Проверка имени", () ->
+                assertThat(response.getName(), is(NAME)));
+        step("Проверка должности", () ->
+                assertThat(response.getJob(), is(JOB)));
+        step("Проверка времени создания", () ->
+                assertThat(response.getCreatedAt(), is(notNullValue())));
     }
 
     @Test
+    @DisplayName("Проверка обновления данных пользователя")
     void updateUserDataTest() {
 
-        String updateData = "{\"name\": \"morpheus\", \"job\": \"manager\"}";
+        UpdateDataResponse response =
+                step("Отправка запроса на обновление данных пользователя", () ->
+                        given(requestSpecification)
+                                .body(updateDataRequest())
+                                .when()
+                                .put(UPDATE_USER_PATH)
+                                .then()
+                                .spec(responseSpec(200))
+                                .extract().as(UpdateDataResponse.class));
 
-        given()
-                .body(updateData)
-                .log().all()
-                .contentType(JSON)
-                .when()
-                .put("/users/2")
-                .then()
-                .log().body()
-                .statusCode(200)
-                .body("job", is("manager"));
+        step("Проверка места работы", () ->
+                assertThat(response.getJob(), is(JOB)));
     }
 
     @Test
+    @DisplayName("Проверка авторизации без пароля")
     void checkMissingPasswordTest() {
 
-        String authData = "{\"email\": \"peter@klaven\"}";
+        UnsuccessfulLoginResponse response =
+                step("Отправка запроса на авторизацию без пароля", () ->
+                        given(requestSpecification)
+                                .body(sendLoginWithoutPasswordRequest())
+                                .when()
+                                .post(LOGIN)
+                                .then()
+                                .spec(responseSpec(400))
+                                .extract().as(UnsuccessfulLoginResponse.class));
 
-        given()
-                .body(authData)
-                .contentType(JSON)
-                .log().uri()
-                .when()
-                .post("/login")
-                .then()
-                .log().status()
-                .log().body()
-                .statusCode(400)
-                .body("error", is("Missing password"));
+        step("Проверка ошибки отсутствия пароля", () ->
+                assertThat(response.getError(), is(MISSING_PASSWORD_ERROR_MESSAGE)));
     }
 
     @Test
+    @DisplayName("Проверка получения цветов")
     void getColourTest() {
 
-        given()
-                .log()
-                .all()
-                .get("/unknown/9")
-                .then()
-                .log().all()
-                .statusCode(200)
-                .body("data.name", is("blue iris"))
-                .body("support.url", is("https://reqres.in/#support-heading"));
+        ColourResponse response =
+                step("Отправка запроса на получение цветов", () ->
+                        given(requestSpecification)
+                                .get(UNKNOWN)
+                                .then()
+                                .log().all()
+                                .statusCode(200)
+                                .extract().as(ColourResponse.class));
+
+        step("Проверка названия цвета", () ->
+                assertThat(response.getData().get(0).getName(), is(COLOUR_NAME)));
+        step("Проверка ссылки", () ->
+                assertThat(response.getSupport().getUrl(), is(SUPPORT_URL)));
     }
 }
