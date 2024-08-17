@@ -58,7 +58,6 @@ public class ReqresTest extends BaseTest {
                 assertThat(response.getJob(), is(JOB)));
         step("Проверка времени создания", () ->
                 assertThat(response.getCreatedAt(), is(notNullValue())));
-
     }
 
     @Test
